@@ -6,8 +6,9 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Original reference (not needed)
+# Original reference code (not needed)
 _og_seqGFN-main/
+_og_disc_gflownet/
 
 # OS
 .DS_Store

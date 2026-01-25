@@ -1,7 +1,9 @@
 """
-GFlowNet Model
+GFlowNet Models
 
-This module contains the Trajectory Balance (TB) model for GFlowNet.
+This module contains models for GFlowNet:
+- TBModel: Trajectory Balance model (learns global logZ)
+- DBModel: Detailed Balance model (learns F(s) per state)
 """
 
 import torch
@@ -69,6 +71,81 @@ class TBModel(nn.Module):
         return P_F, P_B
 
 
+class DBModel(nn.Module):
+    """
+    Detailed Balance Model for GFlowNet.
+    
+    Predicts forward policy P_F, backward policy P_B, and state flow F(s).
+    Used for both DB and FL-DB objectives.
+    """
+    
+    def __init__(
+        self,
+        n_hid: int = 32,
+        uniform_backward: bool = False
+    ):
+        """
+        Args:
+            n_hid: Number of hidden units
+            uniform_backward: If True, use uniform backward policy
+        """
+        super().__init__()
+        
+        self.uniform_backward = uniform_backward
+        input_size = get_input_size()
+        
+        # Output: P_F + P_B + log F(s)
+        # If uniform backward, we still output P_B slot but won't use it
+        output_size = MAX_ACTIONS + MAX_ACTIONS + 1
+        
+        self.mlp = nn.Sequential(
+            nn.Linear(input_size, n_hid),
+            nn.LeakyReLU(),
+            nn.Linear(n_hid, n_hid),
+            nn.LeakyReLU(),
+            nn.Linear(n_hid, output_size),
+        )
+
+    def forward(self, x: torch.Tensor) -> tuple:
+        """
+        Forward pass.
+        
+        Args:
+            x: State tensor from state_to_tensor()
+        
+        Returns:
+            Tuple of (P_F_logits, P_B_logits, log_F)
+            - P_F_logits: Forward policy logits
+            - P_B_logits: Backward policy logits (zeros if uniform)
+            - log_F: Log flow for this state
+        """
+        output = self.mlp(x)
+        
+        P_F = output[..., :MAX_ACTIONS]
+        P_B_raw = output[..., MAX_ACTIONS:2*MAX_ACTIONS]
+        log_F = output[..., -1]
+        
+        if self.uniform_backward:
+            P_B = torch.zeros_like(P_B_raw)
+        else:
+            P_B = P_B_raw
+
+        return P_F, P_B, log_F
+    
+    @property
+    def logZ(self) -> torch.Tensor:
+        """
+        For compatibility with TB interface.
+        Returns log F(s0) which equals log Z.
+        Note: This requires running forward pass on initial state.
+        """
+        raise NotImplementedError(
+            "DBModel doesn't have a global logZ. "
+            "Use log_F from forward pass on initial state instead."
+        )
+
+
+# Legacy import support - loss function moved to losses.py
 def trajectory_balance_loss(
     logZ: torch.Tensor,
     log_P_F: torch.Tensor,
@@ -78,25 +155,8 @@ def trajectory_balance_loss(
     """
     Compute Trajectory Balance loss.
     
-    The TB objective is:
-        Z * P_F(τ) = R(x) * P_B(τ)
-    
-    In log space:
-        log Z + log P_F(τ) = log R(x) + log P_B(τ)
-    
-    Loss is the squared difference:
-        (log Z + log P_F - log R - log P_B)²
-    
-    Args:
-        logZ: Log partition function (learnable)
-        log_P_F: Sum of log forward probabilities along trajectory
-        log_P_B: Sum of log backward probabilities along trajectory
-        reward: Terminal reward R(x)
-    
-    Returns:
-        Scalar loss value
+    Note: This function is kept for backward compatibility.
+    Consider using gfn.losses.trajectory_balance_loss instead.
     """
-    # Clip log(reward) to avoid log(0)
-    log_reward = torch.log(reward).clamp(min=-20.0)
-    loss = (logZ + log_P_F - log_reward - log_P_B).pow(2)
-    return loss
+    from .losses import trajectory_balance_loss as tb_loss
+    return tb_loss(logZ, log_P_F, log_P_B, reward)

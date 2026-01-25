@@ -4,6 +4,11 @@ GFlowNet for Sequence Generation
 A modular implementation of GFlowNet (Generative Flow Network) for learning
 to generate sequences with rewards proportional to their quality.
 
+Supports three training objectives:
+- TB (Trajectory Balance): Global log Z parameter
+- DB (Detailed Balance): Per-state flow F(s)
+- FL-DB (Forward-Looking DB): DB with intermediate rewards
+
 Example usage:
     from gfn import train, TrainingConfig
     from gfn.reward import TargetMatchReward, DEFAULT_TARGETS
@@ -12,9 +17,13 @@ Example usage:
     # Create reward function
     reward_fn = TargetMatchReward(DEFAULT_TARGETS, r_min=0.1)
     
-    # Train model
-    config = TrainingConfig(n_episodes=20_000, learning_rate=3e-3)
+    # Train with TB (default)
+    config = TrainingConfig(n_episodes=20_000, objective="TB")
     result = train(reward_fn, config)
+    
+    # Or train with DB
+    config_db = TrainingConfig(n_episodes=20_000, objective="DB")
+    result_db = train(reward_fn, config_db)
     
     # Visualize
     plot_training_curves(result)
@@ -61,7 +70,16 @@ from .reward import (
 # Model
 from .model import (
     TBModel,
+    DBModel,
     trajectory_balance_loss,
+)
+
+# Loss functions
+from .losses import (
+    trajectory_balance_loss,
+    detailed_balance_loss,
+    forward_looking_db_loss,
+    compute_db_trajectory_loss,
 )
 
 # Training
@@ -116,7 +134,12 @@ __all__ = [
     "DEFAULT_TARGETS",
     # Model
     "TBModel",
+    "DBModel",
+    # Losses
     "trajectory_balance_loss",
+    "detailed_balance_loss",
+    "forward_looking_db_loss",
+    "compute_db_trajectory_loss",
     # Training
     "TrainingConfig",
     "TrainingResult",
