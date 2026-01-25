@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Original reference (not needed)
+_og_seqGFN-main/
+
+# OS
+.DS_Store
