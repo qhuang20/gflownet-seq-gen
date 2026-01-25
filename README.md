@@ -2,6 +2,12 @@
 
 A modular GFlowNet implementation for learning to generate sequences with probability proportional to reward.
 
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Quick Start
 
 ```python
