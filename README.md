@@ -1,6 +1,8 @@
-# GFlowNet for Sequence Generation
+# GFlowNet for RNA Sequence Generation
 
-A modular GFlowNet implementation for learning to generate sequences with probability proportional to reward.
+Code for [AncestorGFN: Evolutionary Sequence Design with GFlowNets](https://github.com/qhuang20/gflownet-seq-gen) (ICLR 2026 Workshop on Generative Models for Genomics).
+
+We train GFlowNets to generate RNA sequences proportional to reward, targeting LET-7 miRNA family members across species. The codebase supports TB, DB, and FL-DB objectives with GPU-accelerated batch training.
 
 ## Setup
 
@@ -13,22 +15,44 @@ pip install -r requirements.txt
 ```python
 from gfn import train, TrainingConfig
 from gfn.reward import TargetMatchReward
-from gfn.visualization import plot_flow_network
 
-targets = [['A', 'B', 'C', 'ε'], ['C', 'B', 'A', 'ε']]
-result = train(TargetMatchReward(targets), TrainingConfig(n_episodes=20_000))
-plot_flow_network(result.model, target_sequences=targets)
+targets = [['A', 'U', 'G', 'C'], ['C', 'C', 'U', 'A'], ['G', 'G', 'G', 'G']]
+result = train(TargetMatchReward(targets, r_min=0.1), TrainingConfig(n_episodes=20_000))
 ```
 
-Or run `run_training.ipynb` for a full demo.
+For the full LET-7 22bp training run:
+```bash
+python train_LET7_22bp.py
+```
 
-## Structure
+## Notebooks
+
+- `run_training.ipynb` — toy example (4bp), compares TB vs DB vs FL-DB
+- `run_training_gpu.ipynb` — GPU training on 10bp targets
+- `run_training_gpu_long_LET7.ipynb` — LET-7 22bp, the main experiment
+- `run_training_gpu_long_LET7_10bp.ipynb` — LET-7 10bp substring variant
+- `run_analysis.ipynb` — hit trajectories, phylogenetic coverage
+- `run_analysis_sequence_design.ipynb` — greedy/stochastic/beam search generation
+
+## Repo Structure
 
 ```
 gfn/
-├── env.py           # States, actions, transitions
-├── model.py         # Trajectory Balance model
-├── reward.py        # Reward functions
-├── training.py      # Training loop
-└── visualization.py # Plotting
+├── env.py            # state space and transitions
+├── model.py          # TB and DB networks
+├── losses.py         # loss functions
+├── reward.py         # reward schemes (Hamming, entropy-weighted, conservation)
+├── training.py       # episode-based training loop
+├── training_fast.py  # GPU batch training
+├── visualization.py  # plotting
+└── utils.py          # helpers
+
+data/
+├── LET7_22bp_targets.json   # 22bp targets filtered from miRBase
+├── LET7_10bp_targets.json   # 10bp substrings (positions 10–19)
+└── LET7_family_mature_ALLspecies.fa
+
+phylogeny/
+├── phylogeny_analysis.ipynb
+└── phylogeny_pipeline.sh
 ```

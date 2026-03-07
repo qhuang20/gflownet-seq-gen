@@ -6,9 +6,23 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Original reference code (not needed)
+# Training outputs
+results/
+*.pt
+*.pkl
+training.log
+
+# Phylogeny intermediate files
+phylogeny/miRNA_iqtree/
+phylogeny/*.aln
+phylogeny/*.clustal
+phylogeny/iqtree_log.txt
+
+# Reference code and internal files
 _og_seqGFN-main/
 _og_disc_gflownet/
+_paper-iclr2026-rna/
+_note/
 
 # OS
 .DS_Store

@@ -1,162 +1,106 @@
-"""
-GFlowNet Models
-
-This module contains models for GFlowNet:
-- TBModel: Trajectory Balance model (learns global logZ)
-- DBModel: Detailed Balance model (learns F(s) per state)
-"""
+"""GFlowNet models: TBModel (Trajectory Balance) and DBModel (Detailed Balance)."""
 
 import torch
 import torch.nn as nn
+from typing import List, Union, Optional
 
-from .env import MAX_ACTIONS
+from .env import get_env_config
 from .utils import get_input_size
 
 
-class TBModel(nn.Module):
-    """
-    Trajectory Balance Model for GFlowNet.
-    
-    Predicts forward policy P_F and optionally backward policy P_B.
-    Also learns the log partition function logZ.
-    """
-    
-    def __init__(
-        self,
-        n_hid: int = 32,
-        uniform_backward: bool = True
-    ):
-        """
-        Args:
-            n_hid: Number of hidden units
-            uniform_backward: If True, use uniform backward policy (simpler)
-        """
-        super().__init__()
-        
-        self.uniform_backward = uniform_backward
-        input_size = get_input_size()
-        
-        # Output size: P_F only if uniform backward, otherwise P_F + P_B
-        output_size = MAX_ACTIONS if uniform_backward else 2 * MAX_ACTIONS
-        
-        self.mlp = nn.Sequential(
-            nn.Linear(input_size, n_hid),
-            nn.LeakyReLU(),
-            nn.Linear(n_hid, output_size),
-        )
-        
-        # Log partition function (learnable scalar)
-        self.logZ = nn.Parameter(torch.ones(1))
+def build_mlp(input_size, output_size, hidden_layers, activation=nn.LeakyReLU):
+    """Build an MLP with configurable hidden layers."""
+    layers = []
+    prev_size = input_size
 
-    def forward(self, x: torch.Tensor) -> tuple:
-        """
-        Forward pass.
-        
-        Args:
-            x: State tensor from state_to_tensor()
-        
-        Returns:
-            Tuple of (P_F_logits, P_B_logits)
-            If uniform_backward=True, P_B is zeros (placeholder)
-        """
+    for hidden_size in hidden_layers:
+        layers.append(nn.Linear(prev_size, hidden_size))
+        layers.append(activation())
+        prev_size = hidden_size
+
+    layers.append(nn.Linear(prev_size, output_size))
+    return nn.Sequential(*layers)
+
+
+class TBModel(nn.Module):
+    """Trajectory Balance model. Learns P_F, optional P_B, and global logZ."""
+
+    def __init__(self, n_hid=32, uniform_backward=True):
+        super().__init__()
+        self.uniform_backward = uniform_backward
+        config = get_env_config()
+        input_size = get_input_size()
+        max_actions = config.max_actions
+
+        if isinstance(n_hid, int):
+            hidden_layers = [n_hid]
+        else:
+            hidden_layers = list(n_hid)
+        self.hidden_layers = hidden_layers
+
+        output_size = max_actions if uniform_backward else 2 * max_actions
+        self.mlp = build_mlp(input_size, output_size, hidden_layers)
+        self.logZ = nn.Parameter(torch.ones(1))
+        self._max_actions = max_actions
+
+    def forward(self, x):
         logits = self.mlp(x)
-        
         if self.uniform_backward:
             P_F = logits
             P_B = torch.zeros_like(P_F)
         else:
-            P_F = logits[..., :MAX_ACTIONS]
-            P_B = logits[..., MAX_ACTIONS:]
-
+            P_F = logits[..., :self._max_actions]
+            P_B = logits[..., self._max_actions:]
         return P_F, P_B
+
+    def __repr__(self):
+        return f"TBModel(hidden_layers={self.hidden_layers}, uniform_backward={self.uniform_backward})"
 
 
 class DBModel(nn.Module):
-    """
-    Detailed Balance Model for GFlowNet.
-    
-    Predicts forward policy P_F, backward policy P_B, and state flow F(s).
-    Used for both DB and FL-DB objectives.
-    """
-    
-    def __init__(
-        self,
-        n_hid: int = 32,
-        uniform_backward: bool = False
-    ):
-        """
-        Args:
-            n_hid: Number of hidden units
-            uniform_backward: If True, use uniform backward policy
-        """
-        super().__init__()
-        
-        self.uniform_backward = uniform_backward
-        input_size = get_input_size()
-        
-        # Output: P_F + P_B + log F(s)
-        # If uniform backward, we still output P_B slot but won't use it
-        output_size = MAX_ACTIONS + MAX_ACTIONS + 1
-        
-        self.mlp = nn.Sequential(
-            nn.Linear(input_size, n_hid),
-            nn.LeakyReLU(),
-            nn.Linear(n_hid, n_hid),
-            nn.LeakyReLU(),
-            nn.Linear(n_hid, output_size),
-        )
+    """Detailed Balance model. Learns P_F, P_B, and per-state flow F(s)."""
 
-    def forward(self, x: torch.Tensor) -> tuple:
-        """
-        Forward pass.
-        
-        Args:
-            x: State tensor from state_to_tensor()
-        
-        Returns:
-            Tuple of (P_F_logits, P_B_logits, log_F)
-            - P_F_logits: Forward policy logits
-            - P_B_logits: Backward policy logits (zeros if uniform)
-            - log_F: Log flow for this state
-        """
+    def __init__(self, n_hid=32, uniform_backward=False):
+        super().__init__()
+        self.uniform_backward = uniform_backward
+        config = get_env_config()
+        input_size = get_input_size()
+        max_actions = config.max_actions
+
+        if isinstance(n_hid, int):
+            hidden_layers = [n_hid, n_hid]
+        else:
+            hidden_layers = list(n_hid)
+        self.hidden_layers = hidden_layers
+
+        output_size = max_actions + max_actions + 1  # P_F + P_B + log F(s)
+        self.mlp = build_mlp(input_size, output_size, hidden_layers)
+        self._max_actions = max_actions
+
+    def forward(self, x):
         output = self.mlp(x)
-        
-        P_F = output[..., :MAX_ACTIONS]
-        P_B_raw = output[..., MAX_ACTIONS:2*MAX_ACTIONS]
+        P_F = output[..., :self._max_actions]
+        P_B_raw = output[..., self._max_actions:2*self._max_actions]
         log_F = output[..., -1]
-        
+
         if self.uniform_backward:
             P_B = torch.zeros_like(P_B_raw)
         else:
             P_B = P_B_raw
-
         return P_F, P_B, log_F
-    
+
     @property
-    def logZ(self) -> torch.Tensor:
-        """
-        For compatibility with TB interface.
-        Returns log F(s0) which equals log Z.
-        Note: This requires running forward pass on initial state.
-        """
+    def logZ(self):
         raise NotImplementedError(
             "DBModel doesn't have a global logZ. "
             "Use log_F from forward pass on initial state instead."
         )
 
+    def __repr__(self):
+        return f"DBModel(hidden_layers={self.hidden_layers}, uniform_backward={self.uniform_backward})"
 
-# Legacy import support - loss function moved to losses.py
-def trajectory_balance_loss(
-    logZ: torch.Tensor,
-    log_P_F: torch.Tensor,
-    log_P_B: torch.Tensor,
-    reward: torch.Tensor
-) -> torch.Tensor:
-    """
-    Compute Trajectory Balance loss.
-    
-    Note: This function is kept for backward compatibility.
-    Consider using gfn.losses.trajectory_balance_loss instead.
-    """
+
+# Legacy import support
+def trajectory_balance_loss(logZ, log_P_F, log_P_B, reward):
     from .losses import trajectory_balance_loss as tb_loss
     return tb_loss(logZ, log_P_F, log_P_B, reward)
