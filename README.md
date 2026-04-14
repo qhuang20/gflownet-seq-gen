@@ -1,8 +1,13 @@
 # GFlowNet for RNA Sequence Generation
 
-Code for [AncestorGFN: Evolutionary Sequence Design with GFlowNets](https://github.com/qhuang20/gflownet-seq-gen) (ICLR 2026 Workshop on Generative Models for Genomics).
+Code for [AncestorGFN: Evolutionary Sequence Design with GFlowNets](https://www.biorxiv.org/content/10.64898/2026.04.08.717239v1.full.pdf) (ICLR 2026 Workshop on Generative Models for Genomics).
 
 We train GFlowNets to generate RNA sequences proportional to reward, targeting LET-7 miRNA family members across species. The codebase supports TB, DB, and FL-DB objectives with GPU-accelerated batch training.
+
+<p align="center">
+  <img src="assets/flow_network.png" width="720"/><br/>
+  <em>Learned GFlowNet flow network over RNA sequence trajectories, with target, novel, and intermediate states.</em>
+</p>
 
 ## Setup
 
