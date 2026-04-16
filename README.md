@@ -1,4 +1,4 @@
-# GFlowNet for RNA Sequence Generation
+# GFlowNet for Sequence Design 
 
 Code for [AncestorGFN: Evolutionary Sequence Design with GFlowNets](https://www.biorxiv.org/content/10.64898/2026.04.08.717239v1.full.pdf) (ICLR 2026 Workshop on Generative Models for Genomics).
 
