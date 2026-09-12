@@ -1,0 +1,18 @@
+# Public overview only; research belongs in the private repository.
+gfn/
+data/
+docs/
+scripts/
+tests/
+results/
+.venv/
+.env
+*.ipynb
+*.py
+*.pt
+*.pkl
+pyproject.toml
+uv.lock
+requirements.txt
+_note/
+.DS_Store
