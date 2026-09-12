@@ -1,0 +1,13 @@
+{
+  "verified_on": "2026-09-12",
+  "sequence_length": 4,
+  "seed": 43,
+  "episodes_per_run": 20000,
+  "metric_scope": "samples collected during training; exact target membership",
+  "note": "TB/DB use exact-match rewards; FL-DB uses alignment rewards. These are not controlled objective comparisons or biological validation.",
+  "target_hit_rate_percent": {
+    "TB": 7.37,
+    "DB": 5.99,
+    "FL-DB": 9.43
+  }
+}

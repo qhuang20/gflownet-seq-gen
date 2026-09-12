@@ -1,18 +1,20 @@
-# Public overview only; research belongs in the private repository.
-gfn/
-data/
-docs/
-scripts/
-tests/
-results/
-.venv/
-.env
-*.ipynb
-*.py
+# Private implementation and research artifacts: never publish these.
+/gfn/
+/docs/DESIGN.md
+/docs/ROADMAP.md
+/docs/REPOSITORIES.md
+/docs/VERIFICATION.md
+/docs/verification-*.json
+/results/
+/checkpoints/
+/_note/
 *.pt
+*.pth
 *.pkl
-pyproject.toml
-uv.lock
-requirements.txt
-_note/
+*.ckpt
+.env
+.env.*
+.venv/
+__pycache__/
+.ipynb_checkpoints/
 .DS_Store
